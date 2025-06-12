@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "build": "npx puppeteer browsers install chrome && prisma generate"
+    "build": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -27,7 +27,8 @@
     "nodemailer": "^7.0.3",
     "pg": "^8.16.0",
     "prisma": "^6.9.0",
-    "puppeteer": "^24.10.0",
+    "puppeteer-core": "10.1.0",
+    "chrome-aws-lambda": "10.1.0",
     "uuid": "^11.1.0"
   }
 }
