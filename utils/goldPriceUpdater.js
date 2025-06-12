@@ -1,27 +1,20 @@
-const chromium = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
-const config = require('../puppeteer.config');
 
 async function fetchGoldRatesPerGram() {
   try {
-    const isDev = process.env.NODE_ENV !== 'production';
-    let options;
-    
-    if (isDev) {
-      options = config.development;
-    } else {
-      options = {
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath,
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      };
-    }
-
-    // Launch browser with proper options
-    const browser = await puppeteer.launch(options);
+    // Use recommended args for production (Render) and local
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--no-first-run'
+      ]
+    });
     const page = await browser.newPage();
 
     // Set browser-like headers
