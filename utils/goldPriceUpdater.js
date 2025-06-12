@@ -1,46 +1,82 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
+const fs = require('fs').promises;
 
-async function fetchIBJARatesPerGram() {
-  const url = 'https://ibjarates.com/';
-  const { data: html } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  const $ = cheerio.load(html);
-  let rate24k = null, rate22k = null, rate18k = null;
-  // Select the gold slider div
-  const goldDiv = $('.owl-carousel.allgold_slider.owl-loaded.owl-drag');
-  if (goldDiv.length) {
-    // Try to get the rates by span IDs directly (more robust)
-    const val999 = goldDiv.find('span#GoldRatesCompare999').first().text().replace(/,/g, '');
-    const val916 = goldDiv.find('span#GoldRatesCompare916').first().text().replace(/,/g, '');
-    const val750 = goldDiv.find('span#GoldRatesCompare750').first().text().replace(/,/g, '');
-    if (val999) rate24k = parseFloat(val999);
-    if (val916) rate22k = parseFloat(val916);
-    if (val750) rate18k = parseFloat(val750);
+async function fetchGoldRatesPerGram() {
+  try {
+    // Launch a headless browser
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+
+    // Set browser-like headers
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br'
+    });
+
+    // Navigate to the page
+    await page.goto('https://www.goodreturns.in/gold-rates/', { waitUntil: 'networkidle2' });
+
+    // Wait for the gold-common-head elements to load
+    await page.waitForSelector('.gold-common-head', { timeout: 10000 });
+
+    // Save the HTML for debugging
+    const htmlText = await page.content();
+    await fs.writeFile('gold_rates_puppeteer.html', htmlText);
+    console.log('HTML saved to gold_rates_puppeteer.html');
+
+    // Extract prices from elements with class 'gold-common-head'
+    const goldData = await page.evaluate(() => {
+      const elements = document.querySelectorAll('.gold-common-head');
+      if (!elements.length) {
+        console.error('No elements with class gold-common-head found');
+        return {};
+      }
+
+      const goldData = {};
+      // Process elements in pairs (label, price)
+      for (let i = 0; i < elements.length; i += 2) {
+        const labelElement = elements[i];
+        const priceElement = elements[i + 1];
+        if (labelElement && priceElement) {
+          let label = labelElement.textContent.trim().replace(/\s/g, ''); // Remove spaces
+          label = label.replace('/g', '').trim(); // Remove "/g"
+          const price = priceElement.textContent.trim().replace('₹', '').replace(',', ''); // Remove ₹ and commas
+          // Map labels to keys (e.g., "24KGold" -> "24K")
+          const key = label.replace('Gold', ''); // e.g., "24KGold" -> "24K"
+          goldData[key] = parseFloat(price); // Convert to number
+        }
+      }
+
+      return goldData;
+    });
+
+    // Close the browser
+    await browser.close();
+
+    // Format the output to match {_24k, _22k, _18k}
+    const rate24k = goldData['24K'] || null;
+    const rate22k = goldData['22K'] || null;
+    const rate18k = goldData['18K'] || null;
+
+    if (!rate24k && !rate22k && !rate18k) {
+      throw new Error('Could not parse gold rates from gold-common-head elements');
+    }
+    return {
+      _24k: rate24k,
+      _22k: rate22k,
+      _18k: rate18k,
+    };
+  } catch (error) {
+    console.error('Error fetching gold rates:', error);
+    throw error;
   }
-  // Fallback: try to get the rates from anywhere in the page if not found in goldDiv
-  if (!rate24k) {
-    const fallback999 = $('span#GoldRatesCompare999').first().text().replace(/,/g, '');
-    if (fallback999) rate24k = parseFloat(fallback999);
-  }
-  if (!rate22k) {
-    const fallback916 = $('span#GoldRatesCompare916').first().text().replace(/,/g, '');
-    if (fallback916) rate22k = parseFloat(fallback916);
-  }
-  if (!rate18k) {
-    const fallback750 = $('span#GoldRatesCompare750').first().text().replace(/,/g, '');
-    if (fallback750) rate18k = parseFloat(fallback750);
-  }
-  if (!rate24k && !rate22k && !rate18k) throw new Error('Could not parse IBJA rates from gold slider');
-  return {
-    _24k: rate24k,
-    _22k: rate22k,
-    _18k: rate18k,
-  };
 }
 
 async function getGoldPricePerGram() {
-  // Always fetch fresh from IBJA
-  return await fetchIBJARatesPerGram();
+  // Always fetch fresh from the source
+  return await fetchGoldRatesPerGram();
 }
 
 async function updateGoldPrices(prisma) {
@@ -52,7 +88,7 @@ async function updateGoldPrices(prisma) {
       price_per_gram: pricePerGram,
     },
   });
-  console.log('Gold price updated (IBJA per gram):', pricePerGram);
+  console.log('Gold price updated (per gram):', pricePerGram);
 }
 
 module.exports = { updateGoldPrices, getGoldPricePerGram };
