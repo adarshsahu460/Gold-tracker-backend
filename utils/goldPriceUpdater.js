@@ -3,8 +3,22 @@ const fs = require('fs').promises;
 
 async function fetchGoldRatesPerGram() {
   try {
-    // Launch a headless browser
-    const browser = await puppeteer.launch({ headless: true });
+    // Launch options for both development and production environments
+    const options = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--no-first-run'
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+    };
+
+    // Launch browser with proper options
+    const browser = await puppeteer.launch(options);
     const page = await browser.newPage();
 
     // Set browser-like headers
