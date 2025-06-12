@@ -7,7 +7,7 @@ module.exports = {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   },
-  // In production (Render), use chrome-aws-lambda
+  // In production (Render), use Puppeteer's bundled Chromium
   production: {
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     headless: true,

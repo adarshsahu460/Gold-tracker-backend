@@ -1,5 +1,30 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
+const cron = require('node-cron');
+
+// In-memory cache for gold price
+let goldPriceCache = {
+  value: null,
+  lastUpdated: null
+};
+
+// Fetch and update cache every hour
+async function updateGoldPriceCache() {
+  try {
+    const price = await fetchGoldRatesPerGram();
+    goldPriceCache.value = price;
+    goldPriceCache.lastUpdated = new Date();
+    console.log('Gold price cache updated:', price);
+  } catch (err) {
+    console.error('Failed to update gold price cache:', err);
+  }
+}
+
+// Schedule: every hour at minute 0
+cron.schedule('0 * * * *', updateGoldPriceCache);
+
+// Initial fetch on server start
+updateGoldPriceCache();
 
 async function fetchGoldRatesPerGram() {
   try {
@@ -84,9 +109,14 @@ async function fetchGoldRatesPerGram() {
   }
 }
 
+// Return cached value
 async function getGoldPricePerGram() {
-  // Always fetch fresh from the source
-  return await fetchGoldRatesPerGram();
+  if (goldPriceCache.value) {
+    return goldPriceCache.value;
+  }
+  // If cache is empty, fetch and update immediately
+  await updateGoldPriceCache();
+  return goldPriceCache.value;
 }
 
 async function updateGoldPrices(prisma) {
