@@ -131,4 +131,46 @@ async function updateGoldPrices(prisma) {
   console.log('Gold price updated (per gram):', pricePerGram);
 }
 
+// Store the maximum gold price per day at 23:59
+cron.schedule('59 23 * * *', async () => {
+  const pricePerGram = await getGoldPricePerGram();
+  const now = new Date();
+  // Set time to 23:59:00 for the record
+  now.setHours(23, 59, 0, 0);
+  // Use Prisma to upsert (update or insert) the max price for the day
+  const { PrismaClient } = require('@prisma/client');
+  const prisma = new PrismaClient();
+  try {
+    // Find the max price for today (from cache or DB)
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    // Get all prices for today
+    const todayPrices = await prisma.goldValue.findMany({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+    let maxPrice = pricePerGram._24k;
+    todayPrices.forEach(p => {
+      if (p.price_per_gram._24k > maxPrice) maxPrice = p.price_per_gram._24k;
+    });
+    // Upsert the max price for today at 23:59
+    await prisma.goldValue.upsert({
+      where: { date: now },
+      update: { price_per_gram: { _24k: maxPrice, _22k: pricePerGram._22k, _18k: pricePerGram._18k } },
+      create: { date: now, price_per_gram: { _24k: maxPrice, _22k: pricePerGram._22k, _18k: pricePerGram._18k } }
+    });
+    console.log('Max gold price for today stored at 23:59:', maxPrice);
+  } catch (err) {
+    console.error('Failed to store max gold price for today:', err);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
 module.exports = { updateGoldPrices, getGoldPricePerGram };

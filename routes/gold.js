@@ -49,4 +49,25 @@ router.get('/list', authMiddleware, async (req, res) => {
   res.json(assets);
 });
 
+// Historical daily gold prices (max per day at 23:59)
+router.get('/history', async (req, res) => {
+  try {
+    // Optional: ?days=30 for last 30 days, default 30
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date();
+    since.setDate(since.getDate() - days + 1);
+    since.setHours(0, 0, 0, 0);
+    // Get all daily max prices (at 23:59) for the period
+    const history = await prisma.goldValue.findMany({
+      where: {
+        date: { gte: since },
+      },
+      orderBy: { date: 'asc' },
+    });
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch gold price history' });
+  }
+});
+
 module.exports = router;

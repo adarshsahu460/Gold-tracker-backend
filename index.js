@@ -11,7 +11,22 @@ const { updateGoldPrices } = require('./utils/goldPriceUpdater');
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  'https://gold-tracker-frontend-m4fzp2ueg-adarshsahu460s-projects.vercel.app',
+  'https://gold-tracker.adarshsahu.site'
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 
 const prisma = new PrismaClient();

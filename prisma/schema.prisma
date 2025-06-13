@@ -35,5 +35,5 @@ model GoldAsset {
 model GoldValue {
   id             Int      @id @default(autoincrement())
   date           DateTime @unique
-  price_per_gram Float
+  price_per_gram Json
 }
