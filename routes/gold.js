@@ -19,8 +19,8 @@ function authMiddleware(req, res, next) {
 
 // Add gold asset
 router.post('/add', authMiddleware, async (req, res) => {
-  const { type, weight, total_price, purchase_date } = req.body;
-  if (!type || !weight || !total_price || !purchase_date) return res.status(400).json({ error: 'All fields required' });
+  const { type, weight, total_price, purchase_date, karat } = req.body;
+  if (!type || !weight || !total_price || !purchase_date || !karat) return res.status(400).json({ error: 'All fields required' });
   const weightNum = parseFloat(weight);
   const totalPriceNum = parseFloat(total_price);
   if (weightNum <= 0) return res.status(400).json({ error: 'Weight must be positive' });
@@ -31,6 +31,7 @@ router.post('/add', authMiddleware, async (req, res) => {
       weight: weightNum,
       purchase_price: pricePerGram,
       purchase_date: new Date(purchase_date),
+      karat,
       userId: req.user.id
     }
   });

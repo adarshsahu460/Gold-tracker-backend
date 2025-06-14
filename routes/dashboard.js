@@ -1,7 +1,6 @@
 const express = require('express');
 const prisma = require('../db');
 const jwt = require('jsonwebtoken');
-const { getGoldPricePerGram } = require('../utils/goldPriceUpdater');
 
 const router = express.Router();
 
@@ -30,7 +29,12 @@ router.get('/', authMiddleware, async (req, res) => {
   let invested = 0, current = 0;
   assets.forEach(a => {
     invested += parseFloat(a.weight) * parseFloat(a.purchase_price);
-    current += parseFloat(a.weight) * (price24K || 0); // Use 24K for current value
+    let pricePerGram = 0;
+    if (a.karat === '24K') pricePerGram = price24K || 0;
+    else if (a.karat === '22K') pricePerGram = price22K || 0;
+    else if (a.karat === '18K') pricePerGram = price18K || 0;
+    else pricePerGram = price24K || 0; // fallback
+    current += parseFloat(a.weight) * pricePerGram;
   });
   res.json({ invested, current, net: current - invested, price24K, price22K, price18K });
 });

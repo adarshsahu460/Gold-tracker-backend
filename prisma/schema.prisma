@@ -28,6 +28,7 @@ model GoldAsset {
   weight        Float
   purchase_price Float
   purchase_date DateTime
+  karat         String   // '24K', '22K', or '18K'
   user          User     @relation(fields: [userId], references: [id])
   userId        Int
 }
