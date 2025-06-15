@@ -137,7 +137,6 @@ cron.schedule('59 23 * * *', async () => {
   const now = new Date();
   // Set time to 23:59:00 for the record
   now.setHours(23, 59, 0, 0);
-  // Use Prisma to upsert (update or insert) the max price for the day
   const { PrismaClient } = require('@prisma/client');
   const prisma = new PrismaClient();
   try {
@@ -159,11 +158,16 @@ cron.schedule('59 23 * * *', async () => {
     todayPrices.forEach(p => {
       if (p.price_per_gram._24k > maxPrice) maxPrice = p.price_per_gram._24k;
     });
-    // Upsert the max price for today at 23:59
-    await prisma.goldValue.upsert({
-      where: { date: now },
-      update: { price_per_gram: { _24k: maxPrice, _22k: pricePerGram._22k, _18k: pricePerGram._18k } },
-      create: { date: now, price_per_gram: { _24k: maxPrice, _22k: pricePerGram._22k, _18k: pricePerGram._18k } }
+    // Delete any existing record for today at 23:59:00
+    await prisma.goldValue.deleteMany({
+      where: { date: now }
+    });
+    // Insert the max price for today at 23:59
+    await prisma.goldValue.create({
+      data: {
+        date: now,
+        price_per_gram: { _24k: maxPrice, _22k: pricePerGram._22k, _18k: pricePerGram._18k }
+      }
     });
     console.log('Max gold price for today stored at 23:59:', maxPrice);
   } catch (err) {
